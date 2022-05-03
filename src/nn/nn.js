@@ -11,6 +11,7 @@ import { getMatrixMultiplication } from "../hooks/get-matrix-multiplication.js";
 import { Linear } from "../activation-function/linear.js";
 import { getAppliedMatrix } from "../hooks/get-applied-matrix.js";
 import { getErrors } from "../hooks/get-errors.js";
+import { getTransposedMatrix } from "../hooks/get-transposed-matrix.js";
 var NN = /** @class */ (function () {
     function NN(hiddenLayer, hiddenActivationFunction) {
         var _this = this;
@@ -20,8 +21,10 @@ var NN = /** @class */ (function () {
         this.inputs = 2;
         this.outputs = 1;
         this.learningRate = 0.01;
-        this.weights1 = new Array(this.inputs + 1).fill(0).map(function () { return new Array(_this.hiddenLayer).fill(0).map(function () { return Math.random(); }); });
-        this.weights2 = new Array(this.hiddenLayer + 1).fill(0).map(function () { return new Array(_this.outputs).fill(0).map(function () { return Math.random(); }); });
+        this.weights1 =
+            new Array(this.inputs + 1).fill(0).map(function () { return new Array(_this.hiddenLayer).fill(0).map(function () { return Math.random(); }); });
+        this.weights2 =
+            new Array(this.hiddenLayer + 1).fill(0).map(function () { return new Array(_this.outputs).fill(0).map(function () { return Math.random(); }); });
         console.log("this.weights1", this.weights1);
         console.log("this.weights2", this.weights2);
     }
@@ -39,7 +42,11 @@ var NN = /** @class */ (function () {
         console.log("errorsSet", errorsSet);
         var outputLayerLocalGradientsSet = this.calculateOutputLocalGradient(errorsSet, outputLayerInducedLocalFieldsSet);
         console.log("outputLayerLocalGradientsSet", outputLayerLocalGradientsSet);
-        var outputLayerWeightAdjustmentMatrix = this.calculateOutputWeightAdjustmentMatrix(hiddenLayerActivationsSet, outputLayerLocalGradientsSet);
+        console.log('--- obtaining weights by multiplying ---');
+        console.log('the transposed of outputLayerLocalGradientsSet', outputLayerLocalGradientsSet);
+        console.log('the hiddenLayerActivationsSet', hiddenLayerActivationsSet);
+        var outputLayerWeightAdjustmentMatrix = getMatrixMultiplication(getTransposedMatrix(outputLayerLocalGradientsSet), hiddenLayerActivationsSet);
+        console.log("outputLayerWeightAdjustmentMatrix", outputLayerWeightAdjustmentMatrix);
         var hiddenLayerWeightAdjustmentMatrix = this.backpropagateOutputLocalGradients(hiddenLayerActivationsSet, outputLayerLocalGradientsSet);
     };
     NN.prototype.calculateErrorsPlaceholder = function (output, expectedOutput) {
