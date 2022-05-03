@@ -2,6 +2,7 @@ import {ActivationFunction} from "../activation-function/activation-function.js"
 import {getMatrixMultiplication} from "../hooks/get-matrix-multiplication.js";
 import {Linear} from "../activation-function/linear.js";
 import {getAppliedMatrix} from "../hooks/get-applied-matrix.js";
+import {getSquareErrors} from "../hooks/get-square-errors.js";
 
 
 export class NN {
@@ -25,17 +26,30 @@ export class NN {
   }
   
   
-  train(inputs: number[][], expectedOutput: number[]): void {
+  train(inputs: number[][], expectedOutput: number[][]): void {
     const hiddenLayerInducedLocalFields = getMatrixMultiplication(inputs.map(i => [1, ...i]), this.weights1);
     const hiddenLayerActivations = getAppliedMatrix(
         hiddenLayerInducedLocalFields,
         this.hiddenActivationFunction.activate
     );
+  
+    console.log("hiddenLayerInducedLocalFields", hiddenLayerInducedLocalFields);
+    console.log("hiddenLayerActivations", hiddenLayerActivations);
     
     const outputInducedLocalField = getMatrixMultiplication(hiddenLayerActivations.map(a => [1, ...a]), this.weights2);
-    const output = getAppliedMatrix(hiddenLayerInducedLocalFields, this.outputActivationFunction.activate);
+    const output = getAppliedMatrix(outputInducedLocalField, this.outputActivationFunction.activate);
+  
+    console.log("outputInducedLocalField", outputInducedLocalField);
+    console.log("output", output);
+  
+    console.log("expectedOutput", expectedOutput);
     
-    const errors = this.calculateErrorsPlaceholder(output, expectedOutput);
+    const errors = getSquareErrors(output, expectedOutput);
+  
+    console.log("errors", errors);
+    
+    debugger;
+    
     const meanErrors = this.calculateMeanErrorsPlaceholder(errors);
     
     const outputLayerLocalGradients = this.calculateOutputLocalGradient(meanErrors);

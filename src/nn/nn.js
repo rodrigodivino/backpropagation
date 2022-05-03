@@ -10,6 +10,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 import { getMatrixMultiplication } from "../hooks/get-matrix-multiplication.js";
 import { Linear } from "../activation-function/linear.js";
 import { getAppliedMatrix } from "../hooks/get-applied-matrix.js";
+import { getSquareErrors } from "../hooks/get-square-errors.js";
 var NN = /** @class */ (function () {
     function NN(hiddenLayer, hiddenActivationFunction) {
         var _this = this;
@@ -27,9 +28,16 @@ var NN = /** @class */ (function () {
     NN.prototype.train = function (inputs, expectedOutput) {
         var hiddenLayerInducedLocalFields = getMatrixMultiplication(inputs.map(function (i) { return __spreadArray([1], i, true); }), this.weights1);
         var hiddenLayerActivations = getAppliedMatrix(hiddenLayerInducedLocalFields, this.hiddenActivationFunction.activate);
+        console.log("hiddenLayerInducedLocalFields", hiddenLayerInducedLocalFields);
+        console.log("hiddenLayerActivations", hiddenLayerActivations);
         var outputInducedLocalField = getMatrixMultiplication(hiddenLayerActivations.map(function (a) { return __spreadArray([1], a, true); }), this.weights2);
-        var output = getAppliedMatrix(hiddenLayerInducedLocalFields, this.outputActivationFunction.activate);
-        var errors = this.calculateErrorsPlaceholder(output, expectedOutput);
+        var output = getAppliedMatrix(outputInducedLocalField, this.outputActivationFunction.activate);
+        console.log("outputInducedLocalField", outputInducedLocalField);
+        console.log("output", output);
+        console.log("expectedOutput", expectedOutput);
+        var errors = getSquareErrors(output, expectedOutput);
+        console.log("errors", errors);
+        debugger;
         var meanErrors = this.calculateMeanErrorsPlaceholder(errors);
         var outputLayerLocalGradients = this.calculateOutputLocalGradient(meanErrors);
         var outputLayerWeightAdjustmentMatrix = this.calculateOutputWeightAdjustmentMatrix(hiddenLayerActivations, outputLayerLocalGradients);
