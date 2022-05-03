@@ -9,7 +9,7 @@ import {getTransposedMatrix} from "../hooks/get-transposed-matrix.js";
 export class NN {
   private readonly outputActivationFunction: ActivationFunction = new Linear();
   private readonly inputs = 2;
-  private readonly outputs = 1;
+  private readonly outputs = 2;
   private readonly learningRate = 0.01;
   
   private weights1: number[][];
@@ -30,26 +30,34 @@ export class NN {
   
   
   train(inputSet: number[][], expectedOutputSet: number[][]): void {
+    // (N x (2+1))
     const inputSetPlusBias = inputSet.map(inputs => [1, ...inputs]);
     console.log("inputSet", inputSet);
     console.log("inputSetPlusBias", inputSetPlusBias);
     
+    // (N x (2+1)) * ((2+1) x 3) = (N x 3)
     const hiddenLayerInducedLocalFieldsSet = getMatrixMultiplication(inputSetPlusBias, this.weights1);
+    
+    // (N x 3)
     const hiddenLayerActivationsSet = getAppliedMatrix(
         hiddenLayerInducedLocalFieldsSet,
         this.hiddenActivationFunction.activate
     );
     
+    // (N x (3+1))
     const hiddenLayerActivationSetPlusBias = hiddenLayerActivationsSet.map(a => [1, ...a]);
     
     console.log("hiddenLayerInducedLocalFieldsSet", hiddenLayerInducedLocalFieldsSet);
     console.log("hiddenLayerActivationsSet", hiddenLayerActivationsSet);
     console.log("hiddenLayerActivationSetPlusBias", hiddenLayerActivationSetPlusBias);
     
+    // (N x (3+1)) * ((3+1) x 2) = (N x 2)
     const outputLayerInducedLocalFieldsSet = getMatrixMultiplication(
         hiddenLayerActivationSetPlusBias,
         this.weights2
     );
+    
+    // (N x 2)
     const outputLayerActivationsSet = getAppliedMatrix(
         outputLayerInducedLocalFieldsSet,
         this.outputActivationFunction.activate
@@ -60,52 +68,76 @@ export class NN {
     
     console.log("expectedOutputSet", expectedOutputSet);
     
+    // (N x 2)
     const errorsSet = getErrors(outputLayerActivationsSet, expectedOutputSet);
     
     console.log("errorsSet", errorsSet);
-    
+    // (N x 2)
     const outputLayerLocalGradientsSet = this.calculateOutputLocalGradient(errorsSet, outputLayerInducedLocalFieldsSet);
     
     console.log("outputLayerLocalGradientsSet", outputLayerLocalGradientsSet);
     
-    console.log('--- obtaining weights by multiplying ---')
-    console.log('the transposed of hiddenLayerActivationSetPlusBias', hiddenLayerActivationSetPlusBias)
-    console.log('the outputLayerLocalGradientsSet', outputLayerLocalGradientsSet)
-    
+    console.log('--- obtaining weights by multiplying ---');
+    console.log('the transposed of hiddenLayerActivationSetPlusBias', hiddenLayerActivationSetPlusBias);
+    console.log('the outputLayerLocalGradientsSet', outputLayerLocalGradientsSet);
+    // t((3+1) x N)t * (N x 2) = ((3+1) x 2)
     const outputLayerWeightAdjustmentMatrix = getMatrixMultiplication(
         getTransposedMatrix(hiddenLayerActivationSetPlusBias),
         outputLayerLocalGradientsSet
     );
     
     console.log("outputLayerWeightAdjustmentMatrix", outputLayerWeightAdjustmentMatrix);
+    // ((3+1) x 2)
+    const averageOutputLayerWeightAdjustmentMatrix = getAppliedMatrix(
+        outputLayerWeightAdjustmentMatrix,
+        d => d / inputSet.length
+    );
     
-    const averageOutputLayerWeightAdjustmentMatrix = getAppliedMatrix(outputLayerWeightAdjustmentMatrix, d => d / inputSet.length)
-  
     console.log("averageOutputLayerWeightAdjustmentMatrix", averageOutputLayerWeightAdjustmentMatrix);
+  
+    // (N x 3)
+    const hiddenLayerLocalGradientsSet = this.calculateHiddenLayerLocalGradientSet(
+        outputLayerLocalGradientsSet,
+        hiddenLayerInducedLocalFieldsSet
+    );
+  
+    console.log("hiddenLayerLocalGradientsSet", hiddenLayerLocalGradientsSet);
     
-    // const hiddenLayerLocalGradientSet = getMatrixMultiplication()
-    //
-    // const hiddenLayerWeightAdjustmentMatrix = this.backpropagateOutputLocalGradients(
-    //     hiddenLayerActivationsSet,
-    //     outputLayerLocalGradientsSet
-    // );
+    // ((2+1) x 3)
+    const hiddenLayerWeightAdjustmentMatrix = getMatrixMultiplication(
+        // t(N x (2+1))t
+        getTransposedMatrix(inputSetPlusBias),
+        // (N x 3)
+        hiddenLayerLocalGradientsSet
+    );
+  
+    console.log("hiddenLayerWeightAdjustmentMatrix", hiddenLayerWeightAdjustmentMatrix);
+    
+    const averageHiddenLayerWeightAdjustmentMatrix = getAppliedMatrix(
+        hiddenLayerWeightAdjustmentMatrix,
+        d => d / inputSet.length
+    );
+  
+    console.log("averageHiddenLayerWeightAdjustmentMatrix", averageHiddenLayerWeightAdjustmentMatrix);
+  
   }
   
-  calculateErrorsPlaceholder(output, expectedOutput): number[][] {
-    return [[0]];
-  }
-  
-  calculateMeanErrorsPlaceholder(error: number[][]): number[] {
-    return [0];
-  }
-  
-  calculateOutputLocalGradient(errorsSet: number[][], outputLocalInducedFieldsSet: number[][]): any {
-    const outputDerivativesSet = getAppliedMatrix(
+  // (N x 2)
+  calculateOutputLocalGradient(
+      //(N x 2)
+      errorsSet: number[][],
+      
+      // (N x 2)
+      outputLocalInducedFieldsSet: number[][]
+  ): any {
+    const outputLayerDerivativesSet = getAppliedMatrix(
         outputLocalInducedFieldsSet,
         this.outputActivationFunction.derivative
     );
+    
+    // (N x 2)
     return errorsSet.map((errors, n) => {
-      const derivatives = outputDerivativesSet[n];
+      const derivatives = outputLayerDerivativesSet[n];
       return errors.map((errorOfNeuron, i) => {
         const derivativeOfNeuron = derivatives[i];
         return errorOfNeuron * derivativeOfNeuron;
@@ -113,11 +145,39 @@ export class NN {
     });
   }
   
-  calculateOutputWeightAdjustmentMatrix(hiddenLayerActivations: number[][], outputLocalGradients: number[][]): any {
+  // (N x 3)
+  private calculateHiddenLayerLocalGradientSet(
+      // (N x 2)
+      outputLayerLocalGradientsSet: any,
+      // (N x 3)
+      hiddenLayerInducedLocalFieldsSet: number[][]
+  ): any {
+    // (N x 3)
+    const hiddenLayerDerivativesSet = getAppliedMatrix(
+        hiddenLayerInducedLocalFieldsSet,
+        this.hiddenActivationFunction.derivative
+    );
+    
+    // Remove bias from computation because it is not connected to layer 1, so it doesn't need a local gradient
+    // (3 x 2)
+    const weights2WithoutBias = this.weights2.slice(1)
+    
+    // (N x 3)
+    const backpropagatedGradientsSet = getMatrixMultiplication(
+        // (N x 2)
+        outputLayerLocalGradientsSet,
+        
+        // t(2 x 3)t
+        getTransposedMatrix(weights2WithoutBias)
+    )
   
-  }
-  
-  backpropagateOutputLocalGradients(...args: any): any {
-  
+    // (N x 3)
+    return backpropagatedGradientsSet.map((backpropagatedGradients, n) => {
+      const derivatives = hiddenLayerDerivativesSet[n];
+      return backpropagatedGradients.map((backPropagatedGradientOfNeuron, i) => {
+        const derivativeOfNeuron = derivatives[i];
+        return backPropagatedGradientOfNeuron * derivativeOfNeuron;
+      });
+    });
   }
 }
