@@ -1,41 +1,54 @@
 import {ActivationFunction} from "../activation-function/activation-function.js";
 import {getMatrixMultiplication} from "../hooks/get-matrix-multiplication.js";
-import {Linear} from "../activation-function/linear.js";
 import {getAppliedMatrix} from "../hooks/get-applied-matrix.js";
 import {getErrors} from "../hooks/get-errors.js";
 import {getTransposedMatrix} from "../hooks/get-transposed-matrix.js";
 
-
+/**
+ * @class NN
+ * @description Encapsulate a MLP with one hidden layer that can be trained using backpropagation
+ */
 export class NN {
-  private readonly outputActivationFunction: ActivationFunction = new Linear();
-  private readonly inputs = 2;
-  private readonly outputs = 2;
-  private readonly learningRate = 0.01;
+  /**
+   * @var this.weights1
+   * @description The matrix of size [1+I,H] of (i,j) weights between the input layer and the hidden layer
+   *    Each weight (i,j) connects the 1 bias and the I neurons (i) of the input layer
+   *    to the H neurons (j) of the hidden layer
+   */
+  private readonly weights1: number[][];
   
-  private weights1: number[][];
-  private weights2: number[][];
+  /**
+   * @var this.weights2
+   * @description The matrix of size [1+H,O] of (i,j) weights between the hidden layer and the output layer
+   *    Each weight (i,j) connects the 1 bias and the H neurons (i) of the hidden layer
+   *    to the O neurons (j) of the output layer
+   */
+  private readonly weights2: number[][];
   
+  /**
+   * @constructor
+   * @param inputNeurons - The number of input neurons
+   * @param hiddenNeurons - The number of hidden neurons
+   * @param hiddenLayerActivationFunction - The activation function of hidden neurons
+   * @param outputNeurons - The number of output neurons
+   * @param outputLayerActivationFunction - The activation function of output neurons
+   * @param learningRate - The learning rate of weight update
+   */
   constructor(
-      private hiddenLayer: number,
-      private hiddenActivationFunction: ActivationFunction
+      private inputNeurons: number,
+      private hiddenNeurons: number,
+      private hiddenLayerActivationFunction: ActivationFunction,
+      private outputNeurons: number,
+      private outputLayerActivationFunction: ActivationFunction,
+      private learningRate: number
   ) {
-    /**
-     * @var this.weights1
-     * @description The matrix of size [1+I,H] of (i,j) weights between the input layer and the hidden layer
-     *    Each weight (i,j) connects the 1 bias and the I neurons (i) of the input layer
-     *    to the H neurons (j) of the hidden layer
-     */
+    
     this.weights1 =
-        new Array(this.inputs + 1).fill(0).map(() => new Array(this.hiddenLayer).fill(0).map(() => Math.random()));
-  
-    /**
-     * @var this.weights2
-     * @description The matrix of size [1+H,O] of (i,j) weights between the hidden layer and the output layer
-     *    Each weight (i,j) connects the 1 bias and the H neurons (i) of the hidden layer
-     *    to the O neurons (j) of the output layer
-     */
+        new Array(1 + this.inputNeurons).fill(0).map(() => new Array(this.hiddenNeurons).fill(0).map(() => Math.random()));
+    
+    
     this.weights2 =
-        new Array(this.hiddenLayer + 1).fill(0).map(() => new Array(this.outputs).fill(0).map(() => Math.random()));
+        new Array(1 + this.hiddenNeurons + 1).fill(0).map(() => new Array(this.outputNeurons).fill(0).map(() => Math.random()));
   }
   
   /**
@@ -47,7 +60,7 @@ export class NN {
     /**
      * @var inputSetPlusBias
      * @description The input set [N, I], pre-pended with a bias [N, 1+I]
-     * Size [N, 1+I] (N entries, each with 1 fixed bias and I inputs)
+     * Size [N, 1+I] (N entries, each with 1 fixed bias and I inputNeurons)
      */
     const inputSetPlusBias = inputSet.map(inputs => [1, ...inputs]);
     
@@ -67,7 +80,7 @@ export class NN {
      */
     const hiddenLayerActivationsSet = getAppliedMatrix(
         hiddenLayerInducedLocalFieldsSet,
-        this.hiddenActivationFunction.activate
+        this.hiddenLayerActivationFunction.activate
     );
     
     /**
@@ -97,12 +110,12 @@ export class NN {
      */
     const outputLayerActivationsSet = getAppliedMatrix(
         outputLayerInducedLocalFieldsSet,
-        this.outputActivationFunction.activate
+        this.outputLayerActivationFunction.activate
     );
     
     /**
      * @var errorsSet
-     * @description The set of differences between the desired and the real outputs of each output neuron
+     * @description The set of differences between the desired and the real outputNeurons of each output neuron
      * Size [N, O] (N entries, each with O errors, one for each neuron in the output layer)
      */
     const errorsSet = getErrors(outputLayerActivationsSet, expectedOutputSet);
@@ -113,7 +126,7 @@ export class NN {
      * Size [N, O] (N entries, each with O local gradients, one for each neuron in the output layer)
      */
     const outputLayerLocalGradientsSet = this.calculateOutputLocalGradient(errorsSet, outputLayerInducedLocalFieldsSet);
- 
+    
     /**
      * @var outputLayerWeightAdjustmentMatrix
      * @description The weight adjustments between hidden and output layers
@@ -176,7 +189,7 @@ export class NN {
         getTransposedMatrix(inputSetPlusBias),
         hiddenLayerLocalGradientsSet
     );
-  
+    
     /**
      * @var averageHiddenLayerWeightAdjustmentMatrix
      * @description The average of the total weight adjustments across the N entries between input and hidden layer
@@ -207,7 +220,7 @@ export class NN {
       errorsSet: number[][],
       outputLocalInducedFieldsSet: number[][]
   ): any {
-  
+    
     /**
      * @var outputLayerDerivativesSet
      * @description The derivatives of the activation function of output neurons at the local induced field
@@ -215,7 +228,7 @@ export class NN {
      */
     const outputLayerDerivativesSet = getAppliedMatrix(
         outputLocalInducedFieldsSet,
-        this.outputActivationFunction.derivative
+        this.outputLayerActivationFunction.derivative
     );
     
     /**
@@ -253,7 +266,7 @@ export class NN {
      */
     const hiddenLayerDerivativesSet = getAppliedMatrix(
         hiddenLayerInducedLocalFieldsSet,
-        this.hiddenActivationFunction.derivative
+        this.hiddenLayerActivationFunction.derivative
     );
     
     /**
@@ -266,7 +279,7 @@ export class NN {
      * Size [H, O] (A matrix of weights (i,j) connecting the H (i) neurons of the hidden layer to the
      *    O (j) output neurons of the output layer.
      */
-    const weights2WithoutBias = this.weights2.slice(1)
+    const weights2WithoutBias = this.weights2.slice(1);
     
     /**
      * @var backpropagatedGradientsSet
@@ -284,8 +297,8 @@ export class NN {
     const backpropagatedGradientsSet = getMatrixMultiplication(
         outputLayerLocalGradientsSet,
         getTransposedMatrix(weights2WithoutBias)
-    )
-  
+    );
+    
     /**
      * @returns the set of hidden local gradients
      * Obtained by multiplying the backpropagated gradient of each hidden neuron with the derivative of the same neuron
