@@ -48,9 +48,12 @@ export class NN {
   
     console.log("errors", errors);
     
-    debugger;
+    const totalError = errors.reduce((prev, curr) => prev + curr, 0);
+    const meanError = totalError / errors.length;
+  
+    console.log("meanError", meanError);
     
-    const meanErrors = this.calculateMeanErrorsPlaceholder(errors);
+    debugger;
     
     const outputLayerLocalGradients = this.calculateOutputLocalGradient(meanErrors);
     const outputLayerWeightAdjustmentMatrix = this.calculateOutputWeightAdjustmentMatrix(

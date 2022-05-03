@@ -37,8 +37,10 @@ var NN = /** @class */ (function () {
         console.log("expectedOutput", expectedOutput);
         var errors = getSquareErrors(output, expectedOutput);
         console.log("errors", errors);
+        var totalError = errors.reduce(function (prev, curr) { return prev + curr; }, 0);
+        var meanError = totalError / errors.length;
+        console.log("meanError", meanError);
         debugger;
-        var meanErrors = this.calculateMeanErrorsPlaceholder(errors);
         var outputLayerLocalGradients = this.calculateOutputLocalGradient(meanErrors);
         var outputLayerWeightAdjustmentMatrix = this.calculateOutputWeightAdjustmentMatrix(hiddenLayerActivations, outputLayerLocalGradients);
         var hiddenLayerWeightAdjustmentMatrix = this.backpropagateOutputLocalGradients(hiddenLayerActivations, outputLayerLocalGradients);
