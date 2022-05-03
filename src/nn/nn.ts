@@ -1,8 +1,9 @@
 import {ActivationFunction} from "../activation-function/activation-function.js";
 import {getMatrixMultiplication} from "../hooks/get-matrix-multiplication.js";
 import {getAppliedMatrix} from "../hooks/get-applied-matrix.js";
-import {getErrors} from "../hooks/get-errors.js";
+import {getMatrixOperation} from "../hooks/get-matrix-operation.js";
 import {getTransposedMatrix} from "../hooks/get-transposed-matrix.js";
+import {getMatrix} from "../hooks/get-matrix.js";
 
 /**
  * @class NN
@@ -42,13 +43,8 @@ export class NN {
       private outputLayerActivationFunction: ActivationFunction,
       private learningRate: number
   ) {
-    
-    this.weights1 =
-        new Array(1 + this.inputNeurons).fill(0).map(() => new Array(this.hiddenNeurons).fill(0).map(() => Math.random()));
-    
-    
-    this.weights2 =
-        new Array(1 + this.hiddenNeurons + 1).fill(0).map(() => new Array(this.outputNeurons).fill(0).map(() => Math.random()));
+    this.weights1 = getAppliedMatrix(getMatrix(1 + this.inputNeurons, this.hiddenNeurons), () => Math.random());
+    this.weights2 = getAppliedMatrix(getMatrix(1 + this.hiddenNeurons, this.outputNeurons), () => Math.random());
   }
   
   /**
@@ -118,7 +114,11 @@ export class NN {
      * @description The set of differences between the desired and the real outputNeurons of each output neuron
      * Size [N, O] (N entries, each with O errors, one for each neuron in the output layer)
      */
-    const errorsSet = getErrors(outputLayerActivationsSet, expectedOutputSet);
+    const errorsSet = getMatrixOperation(
+        expectedOutputSet,
+        outputLayerActivationsSet,
+        (e, o) => e - o
+    );
     
     /**
      * @var outputLayerLocalGradientsSet
@@ -237,13 +237,7 @@ export class NN {
      *
      * Size [N, O] (N entries, each with O local gradients, one for each output neuron)
      */
-    return errorsSet.map((errors, n) => {
-      const derivatives = outputLayerDerivativesSet[n];
-      return errors.map((errorOfNeuron, i) => {
-        const derivativeOfNeuron = derivatives[i];
-        return errorOfNeuron * derivativeOfNeuron;
-      });
-    });
+    return getMatrixOperation(errorsSet, outputLayerDerivativesSet, (e, o) => e * o);
   }
   
   /**
@@ -305,12 +299,6 @@ export class NN {
      *
      * Size [N, H] (N entries, each with H local gradients, one for each hidden neuron)
      */
-    return backpropagatedGradientsSet.map((backpropagatedGradients, n) => {
-      const derivatives = hiddenLayerDerivativesSet[n];
-      return backpropagatedGradients.map((backPropagatedGradientOfNeuron, i) => {
-        const derivativeOfNeuron = derivatives[i];
-        return backPropagatedGradientOfNeuron * derivativeOfNeuron;
-      });
-    });
+    return getMatrixOperation(backpropagatedGradientsSet, hiddenLayerDerivativesSet, (b, h) => b * h);
   }
 }

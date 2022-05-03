@@ -9,8 +9,9 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 };
 import { getMatrixMultiplication } from "../hooks/get-matrix-multiplication.js";
 import { getAppliedMatrix } from "../hooks/get-applied-matrix.js";
-import { getErrors } from "../hooks/get-errors.js";
+import { getMatrixOperation } from "../hooks/get-matrix-operation.js";
 import { getTransposedMatrix } from "../hooks/get-transposed-matrix.js";
+import { getMatrix } from "../hooks/get-matrix.js";
 /**
  * @class NN
  * @description Encapsulate a MLP with one hidden layer that can be trained using backpropagation
@@ -26,17 +27,14 @@ var NN = /** @class */ (function () {
      * @param learningRate - The learning rate of weight update
      */
     function NN(inputNeurons, hiddenNeurons, hiddenLayerActivationFunction, outputNeurons, outputLayerActivationFunction, learningRate) {
-        var _this = this;
         this.inputNeurons = inputNeurons;
         this.hiddenNeurons = hiddenNeurons;
         this.hiddenLayerActivationFunction = hiddenLayerActivationFunction;
         this.outputNeurons = outputNeurons;
         this.outputLayerActivationFunction = outputLayerActivationFunction;
         this.learningRate = learningRate;
-        this.weights1 =
-            new Array(1 + this.inputNeurons).fill(0).map(function () { return new Array(_this.hiddenNeurons).fill(0).map(function () { return Math.random(); }); });
-        this.weights2 =
-            new Array(1 + this.hiddenNeurons + 1).fill(0).map(function () { return new Array(_this.outputNeurons).fill(0).map(function () { return Math.random(); }); });
+        this.weights1 = getAppliedMatrix(getMatrix(1 + this.inputNeurons, this.hiddenNeurons), function () { return Math.random(); });
+        this.weights2 = getAppliedMatrix(getMatrix(1 + this.hiddenNeurons, this.outputNeurons), function () { return Math.random(); });
     }
     /**
      * @description a weight update with the provided batch
@@ -89,7 +87,7 @@ var NN = /** @class */ (function () {
          * @description The set of differences between the desired and the real outputNeurons of each output neuron
          * Size [N, O] (N entries, each with O errors, one for each neuron in the output layer)
          */
-        var errorsSet = getErrors(outputLayerActivationsSet, expectedOutputSet);
+        var errorsSet = getMatrixOperation(expectedOutputSet, outputLayerActivationsSet, function (e, o) { return e - o; });
         /**
          * @var outputLayerLocalGradientsSet
          * @description The set of local gradients of the output neurons
@@ -177,13 +175,7 @@ var NN = /** @class */ (function () {
          *
          * Size [N, O] (N entries, each with O local gradients, one for each output neuron)
          */
-        return errorsSet.map(function (errors, n) {
-            var derivatives = outputLayerDerivativesSet[n];
-            return errors.map(function (errorOfNeuron, i) {
-                var derivativeOfNeuron = derivatives[i];
-                return errorOfNeuron * derivativeOfNeuron;
-            });
-        });
+        return getMatrixOperation(errorsSet, outputLayerDerivativesSet, function (e, o) { return e * o; });
     };
     /**
      * @method calculateHiddenLayerLocalGradientSet
@@ -232,13 +224,7 @@ var NN = /** @class */ (function () {
          *
          * Size [N, H] (N entries, each with H local gradients, one for each hidden neuron)
          */
-        return backpropagatedGradientsSet.map(function (backpropagatedGradients, n) {
-            var derivatives = hiddenLayerDerivativesSet[n];
-            return backpropagatedGradients.map(function (backPropagatedGradientOfNeuron, i) {
-                var derivativeOfNeuron = derivatives[i];
-                return backPropagatedGradientOfNeuron * derivativeOfNeuron;
-            });
-        });
+        return getMatrixOperation(backpropagatedGradientsSet, hiddenLayerDerivativesSet, function (b, h) { return b * h; });
     };
     return NN;
 }());
