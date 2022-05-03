@@ -216,7 +216,7 @@ export class NN {
    * @returns The set of local gradients for output neurons.
    *    Size [N, O] (N entries, each with O local gradients, one for each neuron in the output layer)
    */
-  calculateOutputLocalGradient(
+  private calculateOutputLocalGradient(
       errorsSet: number[][],
       outputLocalInducedFieldsSet: number[][]
   ): any {
@@ -249,7 +249,7 @@ export class NN {
    * @returns The set of local gradients for the hidden layer.
    *    Size [N, H] (N entries, each with H local gradients, one for each neuron in the hidden layer)
    */
-  calculateHiddenLayerLocalGradientSet(
+  private calculateHiddenLayerLocalGradientSet(
       outputLayerLocalGradientsSet: any,
       hiddenLayerInducedLocalFieldsSet: number[][]
   ): any {
