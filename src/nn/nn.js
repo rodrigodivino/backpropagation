@@ -10,7 +10,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 import { getMatrixMultiplication } from "../hooks/get-matrix-multiplication.js";
 import { Linear } from "../activation-function/linear.js";
 import { getAppliedMatrix } from "../hooks/get-applied-matrix.js";
-import { getSquareErrors } from "../hooks/get-square-errors.js";
+import { getErrors } from "../hooks/get-errors.js";
 var NN = /** @class */ (function () {
     function NN(hiddenLayer, hiddenActivationFunction) {
         var _this = this;
@@ -25,25 +25,22 @@ var NN = /** @class */ (function () {
         console.log("this.weights1", this.weights1);
         console.log("this.weights2", this.weights2);
     }
-    NN.prototype.train = function (inputs, expectedOutput) {
-        var hiddenLayerInducedLocalFields = getMatrixMultiplication(inputs.map(function (i) { return __spreadArray([1], i, true); }), this.weights1);
-        var hiddenLayerActivations = getAppliedMatrix(hiddenLayerInducedLocalFields, this.hiddenActivationFunction.activate);
-        console.log("hiddenLayerInducedLocalFields", hiddenLayerInducedLocalFields);
-        console.log("hiddenLayerActivations", hiddenLayerActivations);
-        var outputInducedLocalField = getMatrixMultiplication(hiddenLayerActivations.map(function (a) { return __spreadArray([1], a, true); }), this.weights2);
-        var output = getAppliedMatrix(outputInducedLocalField, this.outputActivationFunction.activate);
-        console.log("outputInducedLocalField", outputInducedLocalField);
-        console.log("output", output);
-        console.log("expectedOutput", expectedOutput);
-        var errors = getSquareErrors(output, expectedOutput);
-        console.log("errors", errors);
-        var totalError = errors.reduce(function (prev, curr) { return prev + curr; }, 0);
-        var meanError = totalError / errors.length;
-        console.log("meanError", meanError);
-        debugger;
-        var outputLayerLocalGradients = this.calculateOutputLocalGradient(meanErrors);
-        var outputLayerWeightAdjustmentMatrix = this.calculateOutputWeightAdjustmentMatrix(hiddenLayerActivations, outputLayerLocalGradients);
-        var hiddenLayerWeightAdjustmentMatrix = this.backpropagateOutputLocalGradients(hiddenLayerActivations, outputLayerLocalGradients);
+    NN.prototype.train = function (inputSet, expectedOutputSet) {
+        var hiddenLayerInducedLocalFieldsSet = getMatrixMultiplication(inputSet.map(function (i) { return __spreadArray([1], i, true); }), this.weights1);
+        var hiddenLayerActivationsSet = getAppliedMatrix(hiddenLayerInducedLocalFieldsSet, this.hiddenActivationFunction.activate);
+        console.log("hiddenLayerInducedLocalFieldsSet", hiddenLayerInducedLocalFieldsSet);
+        console.log("hiddenLayerActivationsSet", hiddenLayerActivationsSet);
+        var outputLayerInducedLocalFieldsSet = getMatrixMultiplication(hiddenLayerActivationsSet.map(function (a) { return __spreadArray([1], a, true); }), this.weights2);
+        var outputLayerActivationsSet = getAppliedMatrix(outputLayerInducedLocalFieldsSet, this.outputActivationFunction.activate);
+        console.log("outputLayerInducedLocalFieldsSet", outputLayerInducedLocalFieldsSet);
+        console.log("outputLayerActivationsSet", outputLayerActivationsSet);
+        console.log("expectedOutputSet", expectedOutputSet);
+        var errorsSet = getErrors(outputLayerActivationsSet, expectedOutputSet);
+        console.log("errorsSet", errorsSet);
+        var outputLayerLocalGradientsSet = this.calculateOutputLocalGradient(errorsSet, outputLayerInducedLocalFieldsSet);
+        console.log("outputLayerLocalGradientsSet", outputLayerLocalGradientsSet);
+        var outputLayerWeightAdjustmentMatrix = this.calculateOutputWeightAdjustmentMatrix(hiddenLayerActivationsSet, outputLayerLocalGradientsSet);
+        var hiddenLayerWeightAdjustmentMatrix = this.backpropagateOutputLocalGradients(hiddenLayerActivationsSet, outputLayerLocalGradientsSet);
     };
     NN.prototype.calculateErrorsPlaceholder = function (output, expectedOutput) {
         return [[0]];
@@ -51,7 +48,15 @@ var NN = /** @class */ (function () {
     NN.prototype.calculateMeanErrorsPlaceholder = function (error) {
         return [0];
     };
-    NN.prototype.calculateOutputLocalGradient = function (meanErrors) {
+    NN.prototype.calculateOutputLocalGradient = function (errorsSet, outputLocalInducedFieldsSet) {
+        var outputDerivativesSet = getAppliedMatrix(outputLocalInducedFieldsSet, this.outputActivationFunction.derivative);
+        return errorsSet.map(function (errors, n) {
+            var derivatives = outputDerivativesSet[n];
+            return errors.map(function (errorOfNeuron, i) {
+                var derivativeOfNeuron = derivatives[i];
+                return errorOfNeuron * derivativeOfNeuron;
+            });
+        });
     };
     NN.prototype.calculateOutputWeightAdjustmentMatrix = function (hiddenLayerActivations, outputLocalGradients) {
     };

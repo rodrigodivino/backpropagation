@@ -2,7 +2,7 @@ import {ActivationFunction} from "../activation-function/activation-function.js"
 import {getMatrixMultiplication} from "../hooks/get-matrix-multiplication.js";
 import {Linear} from "../activation-function/linear.js";
 import {getAppliedMatrix} from "../hooks/get-applied-matrix.js";
-import {getSquareErrors} from "../hooks/get-square-errors.js";
+import {getErrors} from "../hooks/get-errors.js";
 
 
 export class NN {
@@ -26,44 +26,41 @@ export class NN {
   }
   
   
-  train(inputs: number[][], expectedOutput: number[][]): void {
-    const hiddenLayerInducedLocalFields = getMatrixMultiplication(inputs.map(i => [1, ...i]), this.weights1);
-    const hiddenLayerActivations = getAppliedMatrix(
-        hiddenLayerInducedLocalFields,
+  train(inputSet: number[][], expectedOutputSet: number[][]): void {
+    const hiddenLayerInducedLocalFieldsSet = getMatrixMultiplication(inputSet.map(i => [1, ...i]), this.weights1);
+    const hiddenLayerActivationsSet = getAppliedMatrix(
+        hiddenLayerInducedLocalFieldsSet,
         this.hiddenActivationFunction.activate
     );
   
-    console.log("hiddenLayerInducedLocalFields", hiddenLayerInducedLocalFields);
-    console.log("hiddenLayerActivations", hiddenLayerActivations);
+    console.log("hiddenLayerInducedLocalFieldsSet", hiddenLayerInducedLocalFieldsSet);
+    console.log("hiddenLayerActivationsSet", hiddenLayerActivationsSet);
     
-    const outputInducedLocalField = getMatrixMultiplication(hiddenLayerActivations.map(a => [1, ...a]), this.weights2);
-    const output = getAppliedMatrix(outputInducedLocalField, this.outputActivationFunction.activate);
+    const outputLayerInducedLocalFieldsSet = getMatrixMultiplication(hiddenLayerActivationsSet.map(a => [1, ...a]), this.weights2);
+    const outputLayerActivationsSet = getAppliedMatrix(outputLayerInducedLocalFieldsSet, this.outputActivationFunction.activate);
   
-    console.log("outputInducedLocalField", outputInducedLocalField);
-    console.log("output", output);
+    console.log("outputLayerInducedLocalFieldsSet", outputLayerInducedLocalFieldsSet);
+    console.log("outputLayerActivationsSet", outputLayerActivationsSet);
   
-    console.log("expectedOutput", expectedOutput);
+    console.log("expectedOutputSet", expectedOutputSet);
     
-    const errors = getSquareErrors(output, expectedOutput);
+    const errorsSet = getErrors(outputLayerActivationsSet, expectedOutputSet);
   
-    console.log("errors", errors);
+    console.log("errorsSet", errorsSet);
     
-    const totalError = errors.reduce((prev, curr) => prev + curr, 0);
-    const meanError = totalError / errors.length;
+    const outputLayerLocalGradientsSet = this.calculateOutputLocalGradient(errorsSet, outputLayerInducedLocalFieldsSet);
   
-    console.log("meanError", meanError);
+    console.log("outputLayerLocalGradientsSet", outputLayerLocalGradientsSet);
     
-    debugger;
     
-    const outputLayerLocalGradients = this.calculateOutputLocalGradient(meanErrors);
     const outputLayerWeightAdjustmentMatrix = this.calculateOutputWeightAdjustmentMatrix(
-        hiddenLayerActivations,
-        outputLayerLocalGradients
+        hiddenLayerActivationsSet,
+        outputLayerLocalGradientsSet
     );
     
     const hiddenLayerWeightAdjustmentMatrix = this.backpropagateOutputLocalGradients(
-        hiddenLayerActivations,
-        outputLayerLocalGradients
+        hiddenLayerActivationsSet,
+        outputLayerLocalGradientsSet
     );
   }
   
@@ -75,8 +72,15 @@ export class NN {
     return [0];
   }
   
-  calculateOutputLocalGradient(meanErrors: number[]): any {
-  
+  calculateOutputLocalGradient(errorsSet: number[][], outputLocalInducedFieldsSet: number[][]): any {
+    const outputDerivativesSet = getAppliedMatrix(outputLocalInducedFieldsSet, this.outputActivationFunction.derivative);
+    return errorsSet.map((errors, n) => {
+      const derivatives = outputDerivativesSet[n];
+      return errors.map((errorOfNeuron, i) => {
+        const derivativeOfNeuron = derivatives[i];
+        return errorOfNeuron * derivativeOfNeuron
+      })
+    })
   }
   
   calculateOutputWeightAdjustmentMatrix(hiddenLayerActivations: number[][], outputLocalGradients: number[][]): any {
