@@ -1,5 +1,7 @@
-import {ActivationFunction} from "../activation-function/activation-function";
-import {Linear} from "../activation-function/linear";
+import {ActivationFunction} from "../activation-function/activation-function.js";
+import {getMatrixMultiplication} from "../hooks/get-matrix-multiplication.js";
+import {Linear} from "../activation-function/linear.js";
+
 
 export class NN {
   private readonly outputActivationFunction: ActivationFunction = new Linear();
@@ -21,12 +23,12 @@ export class NN {
   
   
   train(inputs: number[][], expectedOutput: number[]): void {
-    const hiddenLayerInducedLocalFields = this.multiPlaceholder([1, ...inputs], this.weights1);
+    const hiddenLayerInducedLocalFields = getMatrixMultiplication(inputs.map(i => [1, ...i]), this.weights1);
     const hiddenLayerActivations = this.activateMatrixPlaceholder(
         hiddenLayerInducedLocalFields,
         this.hiddenActivationFunction
     );
-    const outputInducedLocalField = this.multiPlaceholder([1, ...hiddenLayerActivations], this.weights2);
+    const outputInducedLocalField = getMatrixMultiplication(hiddenLayerActivations.map(a => [1, ...a]), this.weights2);
     const output = this.activateMatrixPlaceholder(hiddenLayerInducedLocalFields, this.outputActivationFunction);
     
     const errors = this.calculateErrorsPlaceholder(output, expectedOutput);
@@ -42,10 +44,6 @@ export class NN {
         hiddenLayerActivations,
         outputLayerLocalGradients
     );
-  }
-  
-  multiPlaceholder(matrixLeft, matrixRight): any {
-  
   }
   
   activateMatrixPlaceholder(matrix, activationFunction: ActivationFunction): any {

@@ -7,7 +7,8 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
-import { Linear } from "../activation-function/linear";
+import { getMatrixMultiplication } from "../hooks/get-matrix-multiplication.js";
+import { Linear } from "../activation-function/linear.js";
 var NN = /** @class */ (function () {
     function NN(hiddenLayer, hiddenActivationFunction) {
         var _this = this;
@@ -21,17 +22,15 @@ var NN = /** @class */ (function () {
         console.log("this.weights2", this.weights2);
     }
     NN.prototype.train = function (inputs, expectedOutput) {
-        var hiddenLayerInducedLocalFields = this.multiPlaceholder(__spreadArray([1], inputs, true), this.weights1);
+        var hiddenLayerInducedLocalFields = getMatrixMultiplication(inputs.map(function (i) { return __spreadArray([1], i, true); }), this.weights1);
         var hiddenLayerActivations = this.activateMatrixPlaceholder(hiddenLayerInducedLocalFields, this.hiddenActivationFunction);
-        var outputInducedLocalField = this.multiPlaceholder(__spreadArray([1], hiddenLayerActivations, true), this.weights2);
+        var outputInducedLocalField = getMatrixMultiplication(hiddenLayerActivations.map(function (a) { return __spreadArray([1], a, true); }), this.weights2);
         var output = this.activateMatrixPlaceholder(hiddenLayerInducedLocalFields, this.outputActivationFunction);
         var errors = this.calculateErrorsPlaceholder(output, expectedOutput);
         var meanErrors = this.calculateMeanErrorsPlaceholder(errors);
         var outputLayerLocalGradients = this.calculateOutputLocalGradient(meanErrors);
         var outputLayerWeightAdjustmentMatrix = this.calculateOutputWeightAdjustmentMatrix(hiddenLayerActivations, outputLayerLocalGradients);
         var hiddenLayerWeightAdjustmentMatrix = this.backpropagateOutputLocalGradients(hiddenLayerActivations, outputLayerLocalGradients);
-    };
-    NN.prototype.multiPlaceholder = function (matrixLeft, matrixRight) {
     };
     NN.prototype.activateMatrixPlaceholder = function (matrix, activationFunction) {
     };

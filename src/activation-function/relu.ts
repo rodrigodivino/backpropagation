@@ -1,4 +1,4 @@
-import {ActivationFunction} from "./activation-function";
+import {ActivationFunction} from "./activation-function.js";
 
 export class ReLU implements ActivationFunction {
   activate(input: number): number {
