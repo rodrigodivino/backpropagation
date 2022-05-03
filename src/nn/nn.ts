@@ -30,17 +30,24 @@ export class NN {
   
   
   train(inputSet: number[][], expectedOutputSet: number[][]): void {
-    const hiddenLayerInducedLocalFieldsSet = getMatrixMultiplication(inputSet.map(i => [1, ...i]), this.weights1);
+    const inputSetPlusBias = inputSet.map(inputs => [1, ...inputs]);
+    console.log("inputSet", inputSet);
+    console.log("inputSetPlusBias", inputSetPlusBias);
+    
+    const hiddenLayerInducedLocalFieldsSet = getMatrixMultiplication(inputSetPlusBias, this.weights1);
     const hiddenLayerActivationsSet = getAppliedMatrix(
         hiddenLayerInducedLocalFieldsSet,
         this.hiddenActivationFunction.activate
     );
     
+    const hiddenLayerActivationSetPlusBias = hiddenLayerActivationsSet.map(a => [1, ...a]);
+    
     console.log("hiddenLayerInducedLocalFieldsSet", hiddenLayerInducedLocalFieldsSet);
     console.log("hiddenLayerActivationsSet", hiddenLayerActivationsSet);
+    console.log("hiddenLayerActivationSetPlusBias", hiddenLayerActivationSetPlusBias);
     
     const outputLayerInducedLocalFieldsSet = getMatrixMultiplication(
-        hiddenLayerActivationsSet.map(a => [1, ...a]),
+        hiddenLayerActivationSetPlusBias,
         this.weights2
     );
     const outputLayerActivationsSet = getAppliedMatrix(
@@ -62,19 +69,26 @@ export class NN {
     console.log("outputLayerLocalGradientsSet", outputLayerLocalGradientsSet);
     
     console.log('--- obtaining weights by multiplying ---')
-    console.log('the transposed of outputLayerLocalGradientsSet', outputLayerLocalGradientsSet)
-    console.log('the hiddenLayerActivationsSet', hiddenLayerActivationsSet)
+    console.log('the transposed of hiddenLayerActivationSetPlusBias', hiddenLayerActivationSetPlusBias)
+    console.log('the outputLayerLocalGradientsSet', outputLayerLocalGradientsSet)
+    
     const outputLayerWeightAdjustmentMatrix = getMatrixMultiplication(
-        getTransposedMatrix(outputLayerLocalGradientsSet),
-        hiddenLayerActivationsSet
+        getTransposedMatrix(hiddenLayerActivationSetPlusBias),
+        outputLayerLocalGradientsSet
     );
     
     console.log("outputLayerWeightAdjustmentMatrix", outputLayerWeightAdjustmentMatrix);
     
-    const hiddenLayerWeightAdjustmentMatrix = this.backpropagateOutputLocalGradients(
-        hiddenLayerActivationsSet,
-        outputLayerLocalGradientsSet
-    );
+    const averageOutputLayerWeightAdjustmentMatrix = getAppliedMatrix(outputLayerWeightAdjustmentMatrix, d => d / inputSet.length)
+  
+    console.log("averageOutputLayerWeightAdjustmentMatrix", averageOutputLayerWeightAdjustmentMatrix);
+    
+    // const hiddenLayerLocalGradientSet = getMatrixMultiplication()
+    //
+    // const hiddenLayerWeightAdjustmentMatrix = this.backpropagateOutputLocalGradients(
+    //     hiddenLayerActivationsSet,
+    //     outputLayerLocalGradientsSet
+    // );
   }
   
   calculateErrorsPlaceholder(output, expectedOutput): number[][] {
