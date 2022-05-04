@@ -61,12 +61,12 @@ export class NN {
     const inputSetPlusBias = inputSet.map(inputs => [1, ...inputs]);
     
     /**
-     * @var hiddenLayerInducedLocalFieldsSet
+     * @var inducedLocalFieldsSetOfHiddenLayer
      * @description The set of induced local fields for the hidden layer
      * Multiplies inputSetPlusBias [N, 1+I] with this.weights1 [1+I, H],
      * Size [N, H] (N entries, each with H induced local fields, one for each neuron in the hidden layer)
      */
-    const hiddenLayerInducedLocalFieldsSet = getMatrixMultiplication(inputSetPlusBias, this.weights1);
+    const inducedLocalFieldsSetOfHiddenLayer = getMatrixMultiplication(inputSetPlusBias, this.weights1);
     
     /**
      * @var hiddenLayerActivationSet
@@ -74,38 +74,38 @@ export class NN {
      * Applies the hidden layer activation function to the induced local fields of the hidden neurons
      * Size [N, H] (N entries, each with H activations, one for each neuron in the hidden layer
      */
-    const hiddenLayerActivationsSet = getAppliedMatrix(
-        hiddenLayerInducedLocalFieldsSet,
+    const activationsSetOfHiddenLayer = getAppliedMatrix(
+        inducedLocalFieldsSetOfHiddenLayer,
         this.hiddenLayerActivationFunction.activate
     );
     
     /**
-     * @var hiddenLayerActivationSetPlusBias
-     * @description The hiddenLayerActivationsSet [N, H], pre-pended with a bias [N, 1+H]
+     * @var activationSetPlusBiasOfHiddenLayer
+     * @description The activationsSetOfHiddenLayer [N, H], pre-pended with a bias [N, 1+H]
      * Size [N, 1+H] (N entries, each with 1 fixed bias and H activations, one for each neuron in the hidden layer)
      */
-    const hiddenLayerActivationSetPlusBias = hiddenLayerActivationsSet.map(a => [1, ...a]);
+    const activationSetPlusBiasOfHiddenLayer = activationsSetOfHiddenLayer.map(a => [1, ...a]);
     
     
     /**
-     * @var outputLayerInducedLocalFieldsSet
+     * @var inducedLocalFieldsSetOfOutputLayer
      * @description The set of induced local fields for the output layer
-     * Multiplies hiddenLayerActivationSetPlusBias [N, 1+H] with this.weights2 [1+H, O],
+     * Multiplies activationSetPlusBiasOfHiddenLayer [N, 1+H] with this.weights2 [1+H, O],
      * Size [N, O] (N entries, each with O induced local fields, one for each neuron in the output layer)
      */
-    const outputLayerInducedLocalFieldsSet = getMatrixMultiplication(
-        hiddenLayerActivationSetPlusBias,
+    const inducedLocalFieldsSetOfOutputLayer = getMatrixMultiplication(
+        activationSetPlusBiasOfHiddenLayer,
         this.weights2
     );
     
     /**
-     * @var outputLayerActivationsSet
+     * @var activationsSetOfOutputLayer
      * @description The set of activations for the output layer
      * Applies the output layer activation function to the induced local fields of the output neurons
      * Size [N, O] (N entries, each with O activations, one for each neuron in the output layer
      */
-    const outputLayerActivationsSet = getAppliedMatrix(
-        outputLayerInducedLocalFieldsSet,
+    const activationsSetOfOutputLayer = getAppliedMatrix(
+        inducedLocalFieldsSetOfOutputLayer,
         this.outputLayerActivationFunction.activate
     );
     
@@ -116,19 +116,19 @@ export class NN {
      */
     const errorsSet = getMatrixOperation(
         expectedOutputSet,
-        outputLayerActivationsSet,
+        activationsSetOfOutputLayer,
         (e, o) => e - o
     );
     
     /**
-     * @var outputLayerLocalGradientsSet
+     * @var localGradientsSetOfOutputLayer
      * @description The set of local gradients of the output neurons
      * Size [N, O] (N entries, each with O local gradients, one for each neuron in the output layer)
      */
-    const outputLayerLocalGradientsSet = this.calculateOutputLocalGradient(errorsSet, outputLayerInducedLocalFieldsSet);
+    const localGradientsSetOfOutputLayer = this.calculateOutputLocalGradient(errorsSet, inducedLocalFieldsSetOfOutputLayer);
     
     /**
-     * @var outputLayerWeightAdjustmentMatrix
+     * @var totalWeightAdjustmentMatrixOfOutputLayer
      * @description The weight adjustments between hidden and output layers
      * The weight adjustment ij is obtained by multiplying the activation of
      *    the hidden neuron i with the local gradient of the output neuron j.
@@ -142,36 +142,36 @@ export class NN {
      *
      * Each total weight (i,j) is the sum of all weight adjustments obtained from each of the N entries of the batch
      */
-    const outputLayerWeightAdjustmentMatrix = getMatrixMultiplication(
-        getTransposedMatrix(hiddenLayerActivationSetPlusBias),
-        outputLayerLocalGradientsSet
+    const totalWeightAdjustmentMatrixOfOutputLayer = getMatrixMultiplication(
+        getTransposedMatrix(activationSetPlusBiasOfHiddenLayer),
+        localGradientsSetOfOutputLayer
     );
     
     /**
-     * @var averageOutputLayerWeightAdjustmentMatrix
+     * @var averageWeightAdjustmentMatrixOfOutputLayer
      * @description The average of the total weight adjustments across the N entries between hidden and output layer
      * Size [1+H, O], a matrix of average weights (i,j) that connect the 1 bias and H neurons (i)
      *    of the hidden layer to the O (j) output neurons.
      *
      * Each average weight (i,j) is the average weight adjustment across the N entries
      */
-    const averageOutputLayerWeightAdjustmentMatrix = getAppliedMatrix(
-        outputLayerWeightAdjustmentMatrix,
+    const averageWeightAdjustmentMatrixOfOutputLayer = getAppliedMatrix(
+        totalWeightAdjustmentMatrixOfOutputLayer,
         d => d / inputSet.length
     );
     
     /**
-     * @var hiddenLayerLocalGradientsSet
+     * @var localGradientsSetOfHiddenLayer
      * @description The set of local gradients of the hidden layer neurons
      * Size [N, H] (N entries, each with H local gradients, one for each neuron in the hidden layer)
      */
-    const hiddenLayerLocalGradientsSet = this.calculateHiddenLayerLocalGradientSet(
-        outputLayerLocalGradientsSet,
-        hiddenLayerInducedLocalFieldsSet
+    const localGradientsSetOfHiddenLayer = this.calculateHiddenLayerLocalGradientSet(
+        localGradientsSetOfOutputLayer,
+        inducedLocalFieldsSetOfHiddenLayer
     );
     
     /**
-     * @var hiddenLayerWeightAdjustmentMatrix
+     * @var totalWeightAdjustmentMatrixOfHiddenLayer
      * @description The weight adjustments between input and hidden layers
      * The weight adjustment ij is obtained by multiplying the input i
      *    with the local gradient of the hidden neuron j.
@@ -185,32 +185,33 @@ export class NN {
      *
      * Each total weight (i,j) is the sum of all weight adjustments obtained from each of the N entries of the batch
      */
-    const hiddenLayerWeightAdjustmentMatrix = getMatrixMultiplication(
+    const totalWeightAdjustmentMatrixOfHiddenLayer = getMatrixMultiplication(
         getTransposedMatrix(inputSetPlusBias),
-        hiddenLayerLocalGradientsSet
+        localGradientsSetOfHiddenLayer
     );
     
     /**
-     * @var averageHiddenLayerWeightAdjustmentMatrix
+     * @var averageWeightAdjustmentMatrixOfHiddenLayer
      * @description The average of the total weight adjustments across the N entries between input and hidden layer
      * Size [1+I, H], a matrix of average weights (i,j) that connect the 1 bias and I neurons (i)
      *    of the input layer to the H (j) hidden neurons.
      *
      * Each average weight (i,j) is the average weight adjustment across the N entries
      */
-    const averageHiddenLayerWeightAdjustmentMatrix = getAppliedMatrix(
-        hiddenLayerWeightAdjustmentMatrix,
+    const averageWeightAdjustmentMatrixOfHiddenLayer = getAppliedMatrix(
+        totalWeightAdjustmentMatrixOfHiddenLayer,
         d => d / inputSet.length
     );
     
     // TODO: Update weights with learning rate
+    
   }
   
   /**
    * @method calculateOutputLocalGradient
    * @param errorsSet - The set of errors of the last layer.
    *    Size [N, O] (N entries, each with O errors, one for each neuron in the output layer)
-   * @param outputLocalInducedFieldsSet - The set of local induced fields in the output layer
+   * @param localInducedFieldsSetOfOutputLayer - The set of local induced fields in the output layer
    *    Size [N, O] (N entries, each with O induced local fields, one for each neuron in the output layer)
    *
    * @returns The set of local gradients for output neurons.
@@ -218,16 +219,16 @@ export class NN {
    */
   private calculateOutputLocalGradient(
       errorsSet: number[][],
-      outputLocalInducedFieldsSet: number[][]
+      localInducedFieldsSetOfOutputLayer: number[][]
   ): any {
     
     /**
-     * @var outputLayerDerivativesSet
+     * @var derivativesSetOfOutputLayer
      * @description The derivatives of the activation function of output neurons at the local induced field
      *    Size [N, O] (N entries, each with O derivatives, one for each output neuron)
      */
-    const outputLayerDerivativesSet = getAppliedMatrix(
-        outputLocalInducedFieldsSet,
+    const derivativesSetOfOutputLayer = getAppliedMatrix(
+        localInducedFieldsSetOfOutputLayer,
         this.outputLayerActivationFunction.derivative
     );
     
@@ -237,21 +238,21 @@ export class NN {
      *
      * Size [N, O] (N entries, each with O local gradients, one for each output neuron)
      */
-    return getMatrixOperation(errorsSet, outputLayerDerivativesSet, (e, o) => e * o);
+    return getMatrixOperation(errorsSet, derivativesSetOfOutputLayer, (e, o) => e * o);
   }
   
   /**
    * @method calculateHiddenLayerLocalGradientSet
-   * @param outputLayerLocalGradientsSet - The set of local gradients in the output layer.
+   * @param localGradientsSetOfOutputLayer - The set of local gradients in the output layer.
    *    Size [N, O] (N entries, each with O local gradients, one for each neuron in the output layer)
-   * @param hiddenLayerInducedLocalFieldsSet - The set of induced local fields in the hidden layer.
+   * @param inducedLocalFieldsSetOfHiddenLayer - The set of induced local fields in the hidden layer.
    *    Size [N, H] (N entries, each with H induced local fields, one for each neuron in the hidden layer)
    * @returns The set of local gradients for the hidden layer.
    *    Size [N, H] (N entries, each with H local gradients, one for each neuron in the hidden layer)
    */
   private calculateHiddenLayerLocalGradientSet(
-      outputLayerLocalGradientsSet: any,
-      hiddenLayerInducedLocalFieldsSet: number[][]
+      localGradientsSetOfOutputLayer: any,
+      inducedLocalFieldsSetOfHiddenLayer: number[][]
   ): any {
     /**
      * @var hiddenLayerDerivativesSet
@@ -259,7 +260,7 @@ export class NN {
      *    Size [N, H] (N entries, each with H derivatives, one for each hidden neuron)
      */
     const hiddenLayerDerivativesSet = getAppliedMatrix(
-        hiddenLayerInducedLocalFieldsSet,
+        inducedLocalFieldsSetOfHiddenLayer,
         this.hiddenLayerActivationFunction.derivative
     );
     
@@ -289,7 +290,7 @@ export class NN {
      * Size [N, H] (N entries, each with H backpropagated gradients from the output to the hidden layer)
      */
     const backpropagatedGradientsSet = getMatrixMultiplication(
-        outputLayerLocalGradientsSet,
+        localGradientsSetOfOutputLayer,
         getTransposedMatrix(weights2WithoutBias)
     );
     
