@@ -34,8 +34,6 @@ var NN = /** @class */ (function () {
         var _this = this;
         var inputSet = Matrix.from(rawInputSet).transposed();
         var expectedOutputSet = Matrix.from(rawExpectedOutputSet).transposed();
-        console.log("inputSet", inputSet);
-        console.log("expectedOutputSet", expectedOutputSet);
         /**
          * @var inducedLocalFieldsSetOfHiddenLayer
          * @description The set of induced local fields for the hidden layer
@@ -148,10 +146,12 @@ var NN = /** @class */ (function () {
          */
         var averageWeightAdjustmentMatrixOfHiddenLayer = totalWeightAdjustmentMatrixOfHiddenLayer.mapValues(function (d) { return d / inputSet.columns; });
         var averageBias1AdjustmentArray = totalBias1AdjustmentArray.map(function (b) { return b / inputSet.columns; });
+        // debugger;
         this.weights1 = this.weights1.operateWith(averageWeightAdjustmentMatrixOfHiddenLayer, function (weight, newWeight) { return weight + _this.learningRate * newWeight; });
         this.weights2 = this.weights2.operateWith(averageWeightAdjustmentMatrixOfOutputLayer, function (weight, newWeight) { return weight + _this.learningRate * newWeight; });
         this.bias1 = this.bias1.map(function (b, i) { return b + _this.learningRate * averageBias1AdjustmentArray[i]; });
         this.bias2 = this.bias2.map(function (b, i) { return b + _this.learningRate * averageBias2AdjustmentArray[i]; });
+        // debugger;
     };
     /**
      * @method calculateOutputLocalGradient

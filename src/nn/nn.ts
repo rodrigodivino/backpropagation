@@ -58,9 +58,6 @@ export class NN {
     
     const inputSet = Matrix.from(rawInputSet).transposed();
     const expectedOutputSet = Matrix.from(rawExpectedOutputSet).transposed();
-  
-    console.log("inputSet", inputSet);
-    console.log("expectedOutputSet", expectedOutputSet);
     
     
     /**
@@ -112,6 +109,7 @@ export class NN {
         .operateWith(activationsSetOfOutputLayer, (e, o) => e - o);
   
     console.log("activationsSetOfOutputLayer.data", activationsSetOfOutputLayer.data.join(', '));
+    
     
     /**
      * @var localGradientsSetOfOutputLayer
@@ -216,6 +214,7 @@ export class NN {
         b => b / inputSet.columns
     );
   
+    // debugger;
   
     this.weights1 = this.weights1.operateWith(
         averageWeightAdjustmentMatrixOfHiddenLayer,
@@ -231,6 +230,7 @@ export class NN {
     this.bias1 = this.bias1.map((b, i) => b + this.learningRate * averageBias1AdjustmentArray[i]);
     this.bias2 = this.bias2.map((b, i) => b + this.learningRate * averageBias2AdjustmentArray[i]);
     
+    // debugger;
   }
   
   /**

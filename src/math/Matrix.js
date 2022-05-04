@@ -21,7 +21,7 @@ var Matrix = /** @class */ (function () {
         }
         else {
             if (randomInitialization) {
-                this.data = new Array(rows).fill(0).map(function () { return new Array(columns).fill(0).map(function () { return Math.random(); }); });
+                this.data = new Array(rows).fill(0).map(function () { return new Array(columns).fill(0).map(function () { return Math.random() * 10 - 5; }); });
             }
             else {
                 this.data = new Array(rows).fill(0).map(function () { return new Array(columns).fill(0); });

@@ -29,7 +29,7 @@ export class Matrix {
       this.data = dataInitialization;
     } else {
       if (randomInitialization) {
-        this.data = new Array(rows).fill(0).map(() => new Array(columns).fill(0).map(() => Math.random()));
+        this.data = new Array(rows).fill(0).map(() => new Array(columns).fill(0).map(() => Math.random() * 10 - 5));
       } else {
         this.data = new Array(rows).fill(0).map(() => new Array(columns).fill(0));
       }
