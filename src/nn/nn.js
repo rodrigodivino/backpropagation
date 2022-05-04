@@ -7,11 +7,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     }
     return to.concat(ar || Array.prototype.slice.call(from));
 };
-import { getMatrixMultiplication } from "../hooks/get-matrix-multiplication.js";
-import { getMappedMatrix } from "../hooks/get-mapped-matrix.js";
-import { getMatrixOperation } from "../hooks/get-matrix-operation.js";
-import { getTransposedMatrix } from "../hooks/get-transposed-matrix.js";
-import { getNewMatrix } from "../hooks/get-new-matrix.js";
+import { Matrix } from "../math/Matrix.js";
 /**
  * @class NN
  * @description Encapsulate a MLP with one hidden layer that can be trained using backpropagation
@@ -33,8 +29,8 @@ var NN = /** @class */ (function () {
         this.outputNeurons = outputNeurons;
         this.outputLayerActivationFunction = outputLayerActivationFunction;
         this.learningRate = learningRate;
-        this.weights1 = getMappedMatrix(getNewMatrix(1 + this.inputNeurons, this.hiddenNeurons), function () { return Math.random(); });
-        this.weights2 = getMappedMatrix(getNewMatrix(1 + this.hiddenNeurons, this.outputNeurons), function () { return Math.random(); });
+        this.weights1 = new Matrix(1 + this.inputNeurons, this.hiddenNeurons, true);
+        this.weights2 = new Matrix(1 + this.hiddenNeurons, this.outputNeurons, true);
     }
     /**
      * @description a weight update with the provided batch
@@ -48,47 +44,48 @@ var NN = /** @class */ (function () {
          * @description The input set [N, I], pre-pended with a bias [N, 1+I]
          * Size [N, 1+I] (N entries, each with 1 fixed bias and I inputNeurons)
          */
-        var inputSetPlusBias = inputSet.map(function (inputs) { return __spreadArray([1], inputs, true); });
+        var inputSetPlusBias = Matrix.from(inputSet.map(function (inputs) { return __spreadArray([1], inputs, true); }));
         /**
          * @var inducedLocalFieldsSetOfHiddenLayer
          * @description The set of induced local fields for the hidden layer
          * Multiplies inputSetPlusBias [N, 1+I] with this.weights1 [1+I, H],
          * Size [N, H] (N entries, each with H induced local fields, one for each neuron in the hidden layer)
          */
-        var inducedLocalFieldsSetOfHiddenLayer = getMatrixMultiplication(inputSetPlusBias, this.weights1);
+        var inducedLocalFieldsSetOfHiddenLayer = inputSetPlusBias.leftMultiplyWith(this.weights1);
         /**
          * @var hiddenLayerActivationSet
          * @description The set of activations for the hidden layer
          * Applies the hidden layer activation function to the induced local fields of the hidden neurons
          * Size [N, H] (N entries, each with H activations, one for each neuron in the hidden layer
          */
-        var activationsSetOfHiddenLayer = getMappedMatrix(inducedLocalFieldsSetOfHiddenLayer, this.hiddenLayerActivationFunction.activate);
+        var activationsSetOfHiddenLayer = inducedLocalFieldsSetOfHiddenLayer.mapValues(this.hiddenLayerActivationFunction.activate);
         /**
          * @var activationSetPlusBiasOfHiddenLayer
          * @description The activationsSetOfHiddenLayer [N, H], pre-pended with a bias [N, 1+H]
          * Size [N, 1+H] (N entries, each with 1 fixed bias and H activations, one for each neuron in the hidden layer)
          */
-        var activationSetPlusBiasOfHiddenLayer = activationsSetOfHiddenLayer.map(function (a) { return __spreadArray([1], a, true); });
+        var activationSetPlusBiasOfHiddenLayer = activationsSetOfHiddenLayer.mapRows(function (activations) { return __spreadArray([1], activations, true); });
         /**
          * @var inducedLocalFieldsSetOfOutputLayer
          * @description The set of induced local fields for the output layer
          * Multiplies activationSetPlusBiasOfHiddenLayer [N, 1+H] with this.weights2 [1+H, O],
          * Size [N, O] (N entries, each with O induced local fields, one for each neuron in the output layer)
          */
-        var inducedLocalFieldsSetOfOutputLayer = getMatrixMultiplication(activationSetPlusBiasOfHiddenLayer, this.weights2);
+        var inducedLocalFieldsSetOfOutputLayer = activationSetPlusBiasOfHiddenLayer.leftMultiplyWith(this.weights2);
         /**
          * @var activationsSetOfOutputLayer
          * @description The set of activations for the output layer
          * Applies the output layer activation function to the induced local fields of the output neurons
          * Size [N, O] (N entries, each with O activations, one for each neuron in the output layer
          */
-        var activationsSetOfOutputLayer = getMappedMatrix(inducedLocalFieldsSetOfOutputLayer, this.outputLayerActivationFunction.activate);
+        var activationsSetOfOutputLayer = inducedLocalFieldsSetOfOutputLayer.mapValues(this.outputLayerActivationFunction.activate);
         /**
          * @var errorsSet
          * @description The set of differences between the desired and the real outputNeurons of each output neuron
          * Size [N, O] (N entries, each with O errors, one for each neuron in the output layer)
          */
-        var errorsSet = getMatrixOperation(expectedOutputSet, activationsSetOfOutputLayer, function (e, o) { return e - o; });
+        var errorsSet = Matrix.from(expectedOutputSet)
+            .operateWith(activationsSetOfOutputLayer, function (e, o) { return e - o; });
         /**
          * @var localGradientsSetOfOutputLayer
          * @description The set of local gradients of the output neurons
@@ -101,25 +98,26 @@ var NN = /** @class */ (function () {
          * The weight adjustment ij is obtained by multiplying the activation of
          *    the hidden neuron i with the local gradient of the output neuron j.
          *
-         * To achieve in matrix multiplication, the hidden layers activation set is
+         * To achieve in math multiplication, the hidden layers activation set is
          *    transposed (from [N, 1+H] to [1+H, N])
          *    and multiplied with the output local gradients [N, O]
          *
-         * Size [1+H, O], a matrix of total weights (i,j) that connect the 1 bias and H neurons (i)
+         * Size [1+H, O], a math of total weights (i,j) that connect the 1 bias and H neurons (i)
          *    of the hidden layer to the O (j) output neurons.
          *
          * Each total weight (i,j) is the sum of all weight adjustments obtained from each of the N entries of the batch
          */
-        var totalWeightAdjustmentMatrixOfOutputLayer = getMatrixMultiplication(getTransposedMatrix(activationSetPlusBiasOfHiddenLayer), localGradientsSetOfOutputLayer);
+        var totalWeightAdjustmentMatrixOfOutputLayer = activationSetPlusBiasOfHiddenLayer.transposed()
+            .leftMultiplyWith(localGradientsSetOfOutputLayer);
         /**
          * @var averageWeightAdjustmentMatrixOfOutputLayer
          * @description The average of the total weight adjustments across the N entries between hidden and output layer
-         * Size [1+H, O], a matrix of average weights (i,j) that connect the 1 bias and H neurons (i)
+         * Size [1+H, O], a math of average weights (i,j) that connect the 1 bias and H neurons (i)
          *    of the hidden layer to the O (j) output neurons.
          *
          * Each average weight (i,j) is the average weight adjustment across the N entries
          */
-        var averageWeightAdjustmentMatrixOfOutputLayer = getMappedMatrix(totalWeightAdjustmentMatrixOfOutputLayer, function (d) { return d / inputSet.length; });
+        var averageWeightAdjustmentMatrixOfOutputLayer = totalWeightAdjustmentMatrixOfOutputLayer.mapValues(function (d) { return d / inputSet.length; });
         /**
          * @var localGradientsSetOfHiddenLayer
          * @description The set of local gradients of the hidden layer neurons
@@ -132,27 +130,28 @@ var NN = /** @class */ (function () {
          * The weight adjustment ij is obtained by multiplying the input i
          *    with the local gradient of the hidden neuron j.
          *
-         * To achieve in matrix multiplication, the input set is
+         * To achieve in math multiplication, the input set is
          *    transposed (from [N, 1+I] to [1+I, N])
          *    and multiplied with the hidden local gradients [N, H]
          *
-         * Size [1+I, H], a matrix of total weights (i,j) that connect the 1 bias and I neurons (i)
+         * Size [1+I, H], a math of total weights (i,j) that connect the 1 bias and I neurons (i)
          *    of the input layer to the H (j) hidden neurons.
          *
          * Each total weight (i,j) is the sum of all weight adjustments obtained from each of the N entries of the batch
          */
-        var totalWeightAdjustmentMatrixOfHiddenLayer = getMatrixMultiplication(getTransposedMatrix(inputSetPlusBias), localGradientsSetOfHiddenLayer);
+        var totalWeightAdjustmentMatrixOfHiddenLayer = inputSetPlusBias.transposed()
+            .leftMultiplyWith(localGradientsSetOfHiddenLayer);
         /**
          * @var averageWeightAdjustmentMatrixOfHiddenLayer
          * @description The average of the total weight adjustments across the N entries between input and hidden layer
-         * Size [1+I, H], a matrix of average weights (i,j) that connect the 1 bias and I neurons (i)
+         * Size [1+I, H], a math of average weights (i,j) that connect the 1 bias and I neurons (i)
          *    of the input layer to the H (j) hidden neurons.
          *
          * Each average weight (i,j) is the average weight adjustment across the N entries
          */
-        var averageWeightAdjustmentMatrixOfHiddenLayer = getMappedMatrix(totalWeightAdjustmentMatrixOfHiddenLayer, function (d) { return d / inputSet.length; });
-        this.weights1 = getMatrixOperation(this.weights1, averageWeightAdjustmentMatrixOfHiddenLayer, function (weight, newWeight) { return weight + _this.learningRate * newWeight; });
-        this.weights2 = getMatrixOperation(this.weights2, averageWeightAdjustmentMatrixOfOutputLayer, function (weight, newWeight) { return weight + _this.learningRate * newWeight; });
+        var averageWeightAdjustmentMatrixOfHiddenLayer = totalWeightAdjustmentMatrixOfHiddenLayer.mapValues(function (d) { return d / inputSet.length; });
+        this.weights1 = this.weights1.operateWith(averageWeightAdjustmentMatrixOfHiddenLayer, function (weight, newWeight) { return weight + _this.learningRate * newWeight; });
+        this.weights2 = this.weights2.operateWith(averageWeightAdjustmentMatrixOfOutputLayer, function (weight, newWeight) { return weight + _this.learningRate * newWeight; });
     };
     /**
      * @method calculateOutputLocalGradient
@@ -170,14 +169,14 @@ var NN = /** @class */ (function () {
          * @description The derivatives of the activation function of output neurons at the local induced field
          *    Size [N, O] (N entries, each with O derivatives, one for each output neuron)
          */
-        var derivativesSetOfOutputLayer = getMappedMatrix(localInducedFieldsSetOfOutputLayer, this.outputLayerActivationFunction.derivative);
+        var derivativesSetOfOutputLayer = localInducedFieldsSetOfOutputLayer.mapValues(this.outputLayerActivationFunction.derivative);
         /**
          * @returns the set of output local gradients
          * Obtained by multiplying the error of each output neuron with the derivative of the same neuron
          *
          * Size [N, O] (N entries, each with O local gradients, one for each output neuron)
          */
-        return getMatrixOperation(errorsSet, derivativesSetOfOutputLayer, function (e, o) { return e * o; });
+        return errorsSet.operateWith(derivativesSetOfOutputLayer, function (e, d) { return e * d; });
     };
     /**
      * @method calculateHiddenLayerLocalGradientSet
@@ -194,7 +193,7 @@ var NN = /** @class */ (function () {
          * @description The derivatives of the activation function of hidden neurons at the local induced field
          *    Size [N, H] (N entries, each with H derivatives, one for each hidden neuron)
          */
-        var hiddenLayerDerivativesSet = getMappedMatrix(inducedLocalFieldsSetOfHiddenLayer, this.hiddenLayerActivationFunction.derivative);
+        var hiddenLayerDerivativesSet = inducedLocalFieldsSetOfHiddenLayer.mapValues(this.hiddenLayerActivationFunction.derivative);
         /**
          * @var weights2WithoutBias
          * @description The weights connecting the hidden layer to the output layer, but without the bias weights
@@ -202,10 +201,10 @@ var NN = /** @class */ (function () {
          *  so there is no need to obtain the local gradient of the hidden layer bias,
          *  because it is not going to be propagated back to any weight in the input layer
          *
-         * Size [H, O] (A matrix of weights (i,j) connecting the H (i) neurons of the hidden layer to the
+         * Size [H, O] (A math of weights (i,j) connecting the H (i) neurons of the hidden layer to the
          *    O (j) output neurons of the output layer.
          */
-        var weights2WithoutBias = this.weights2.slice(1);
+        var weights2WithoutBias = this.weights2.sliceRows(1);
         /**
          * @var backpropagatedGradientsSet
          * @description The propagated gradients from the output neurons back to the hidden layer, weighted by the connections
@@ -213,20 +212,21 @@ var NN = /** @class */ (function () {
          *        since the propagated gradient still needs to be multiplied with the
          *        derivative of the hidden neuron at the local induced field
          *
-         * In matrix multiplication, this is obtained by multiplying
+         * In math multiplication, this is obtained by multiplying
          *    the set of local gradients of the output layer [N, O]
          *    with the transposed weights2WithoutBias (from [H,O] to [O,H])
          *
          * Size [N, H] (N entries, each with H backpropagated gradients from the output to the hidden layer)
          */
-        var backpropagatedGradientsSet = getMatrixMultiplication(localGradientsSetOfOutputLayer, getTransposedMatrix(weights2WithoutBias));
+        var backpropagatedGradientsSet = localGradientsSetOfOutputLayer
+            .leftMultiplyWith(weights2WithoutBias.transposed());
         /**
          * @returns the set of hidden local gradients
          * Obtained by multiplying the backpropagated gradient of each hidden neuron with the derivative of the same neuron
          *
          * Size [N, H] (N entries, each with H local gradients, one for each hidden neuron)
          */
-        return getMatrixOperation(backpropagatedGradientsSet, hiddenLayerDerivativesSet, function (b, h) { return b * h; });
+        return backpropagatedGradientsSet.operateWith(hiddenLayerDerivativesSet, function (b, h) { return b * h; });
     };
     return NN;
 }());
