@@ -95,6 +95,9 @@ var Matrix = /** @class */ (function () {
     Matrix.prototype.mapRows = function (rowMapper) {
         return Matrix.from(this.data.map(rowMapper));
     };
+    Matrix.prototype.mapColumns = function (columnMapper) {
+        return this.transposed().mapRows(columnMapper).transposed();
+    };
     /**
      * @method transposed
      * @description Obtains the transposed of this matrix

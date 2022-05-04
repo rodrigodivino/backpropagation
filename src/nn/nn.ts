@@ -7,20 +7,24 @@ import {Matrix} from "../math/Matrix.js";
  */
 export class NN {
   /**
-   * @var this.weights1
+   * @property this.weights1
    * @description The math of size [1+I,H] of (i,j) weights between the input layer and the hidden layer
    *    Each weight (i,j) connects the 1 bias and the I neurons (i) of the input layer
    *    to the H neurons (j) of the hidden layer
    */
-  private weights1: Matrix;
+  weights1: Matrix;
   
   /**
-   * @var this.weights2
+   * @property this.weights2
    * @description The math of size [1+H,O] of (i,j) weights between the hidden layer and the output layer
    *    Each weight (i,j) connects the 1 bias and the H neurons (i) of the hidden layer
    *    to the O neurons (j) of the output layer
    */
-  private weights2: Matrix;
+  weights2: Matrix;
+  
+  bias1: number[];
+  
+  bias2: number[];
   
   /**
    * @constructor
@@ -39,8 +43,10 @@ export class NN {
       private outputLayerActivationFunction: ActivationFunction,
       private learningRate: number
   ) {
-    this.weights1 = new Matrix(1 + this.inputNeurons, this.hiddenNeurons, true);
-    this.weights2 = new Matrix(1 + this.hiddenNeurons, this.outputNeurons, true);
+    this.weights1 = new Matrix(this.inputNeurons, this.hiddenNeurons, true);
+    this.weights2 = new Matrix(this.hiddenNeurons, this.outputNeurons, true);
+    this.bias1 = new Array(this.hiddenNeurons).fill(0).map(() => Math.random());
+    this.bias2 = new Array(this.outputNeurons).fill(0).map(() => Math.random());
   }
   
   /**
@@ -48,13 +54,14 @@ export class NN {
    * @param inputSet - The batch to use for weight update
    * @param expectedOutputSet - The expected output of neurons for each entry in the batch
    */
-  train(inputSet: number[][], expectedOutputSet: number[][]): void {
-    /**
-     * @var inputSetPlusBias
-     * @description The input set [N, I], pre-pended with a bias [N, 1+I]
-     * Size [N, 1+I] (N entries, each with 1 fixed bias and I inputNeurons)
-     */
-    const inputSetPlusBias = Matrix.from(inputSet.map(inputs => [1, ...inputs]));
+  train(rawInputSet: number[][], rawExpectedOutputSet: number[][]): void {
+    
+    const inputSet = Matrix.from(rawInputSet).transposed();
+    const expectedOutputSet = Matrix.from(rawExpectedOutputSet).transposed();
+  
+    console.log("inputSet", inputSet);
+    console.log("expectedOutputSet", expectedOutputSet);
+    
     
     /**
      * @var inducedLocalFieldsSetOfHiddenLayer
@@ -62,7 +69,10 @@ export class NN {
      * Multiplies inputSetPlusBias [N, 1+I] with this.weights1 [1+I, H],
      * Size [N, H] (N entries, each with H induced local fields, one for each neuron in the hidden layer)
      */
-    const inducedLocalFieldsSetOfHiddenLayer = inputSetPlusBias.leftMultiplyWith(this.weights1);
+    const inducedLocalFieldsSetOfHiddenLayer = this.weights1.transposed()
+        .leftMultiplyWith(inputSet)
+        .mapColumns(column => column.map((value,c) => value + this.bias1[c]))
+    
     
     /**
      * @var hiddenLayerActivationSet
@@ -70,17 +80,8 @@ export class NN {
      * Applies the hidden layer activation function to the induced local fields of the hidden neurons
      * Size [N, H] (N entries, each with H activations, one for each neuron in the hidden layer
      */
-    const activationsSetOfHiddenLayer = inducedLocalFieldsSetOfHiddenLayer.mapValues(
-        this.hiddenLayerActivationFunction.activate
-    );
-    
-    /**
-     * @var activationSetPlusBiasOfHiddenLayer
-     * @description The activationsSetOfHiddenLayer [N, H], pre-pended with a bias [N, 1+H]
-     * Size [N, 1+H] (N entries, each with 1 fixed bias and H activations, one for each neuron in the hidden layer)
-     */
-    const activationSetPlusBiasOfHiddenLayer = activationsSetOfHiddenLayer.mapRows(activations => [1, ...activations]);
-    
+    const activationsSetOfHiddenLayer = inducedLocalFieldsSetOfHiddenLayer
+        .mapValues(this.hiddenLayerActivationFunction.activate);
     
     /**
      * @var inducedLocalFieldsSetOfOutputLayer
@@ -88,7 +89,9 @@ export class NN {
      * Multiplies activationSetPlusBiasOfHiddenLayer [N, 1+H] with this.weights2 [1+H, O],
      * Size [N, O] (N entries, each with O induced local fields, one for each neuron in the output layer)
      */
-    const inducedLocalFieldsSetOfOutputLayer = activationSetPlusBiasOfHiddenLayer.leftMultiplyWith(this.weights2);
+    const inducedLocalFieldsSetOfOutputLayer = this.weights2.transposed()
+        .leftMultiplyWith(activationsSetOfHiddenLayer)
+        .mapColumns(column => column.map((value,c) => value + this.bias2[c]))
     
     /**
      * @var activationsSetOfOutputLayer
@@ -96,15 +99,19 @@ export class NN {
      * Applies the output layer activation function to the induced local fields of the output neurons
      * Size [N, O] (N entries, each with O activations, one for each neuron in the output layer
      */
-    const activationsSetOfOutputLayer = inducedLocalFieldsSetOfOutputLayer.mapValues(this.outputLayerActivationFunction.activate);
+    const activationsSetOfOutputLayer = inducedLocalFieldsSetOfOutputLayer
+        .mapValues(this.outputLayerActivationFunction.activate);
+    
     
     /**
      * @var errorsSet
      * @description The set of differences between the desired and the real outputNeurons of each output neuron
      * Size [N, O] (N entries, each with O errors, one for each neuron in the output layer)
      */
-    const errorsSet = Matrix.from(expectedOutputSet)
+    const errorsSet = expectedOutputSet
         .operateWith(activationsSetOfOutputLayer, (e, o) => e - o);
+  
+    console.log("activationsSetOfOutputLayer.data", activationsSetOfOutputLayer.data.join(', '));
     
     /**
      * @var localGradientsSetOfOutputLayer
@@ -115,6 +122,7 @@ export class NN {
         errorsSet,
         inducedLocalFieldsSetOfOutputLayer
     );
+    
     
     /**
      * @var totalWeightAdjustmentMatrixOfOutputLayer
@@ -131,8 +139,12 @@ export class NN {
      *
      * Each total weight (i,j) is the sum of all weight adjustments obtained from each of the N entries of the batch
      */
-    const totalWeightAdjustmentMatrixOfOutputLayer = activationSetPlusBiasOfHiddenLayer.transposed()
-        .leftMultiplyWith(localGradientsSetOfOutputLayer);
+    const totalWeightAdjustmentMatrixOfOutputLayer = activationsSetOfHiddenLayer
+        .leftMultiplyWith(localGradientsSetOfOutputLayer.transposed());
+  
+    
+    const totalBias2AdjustmentArray = localGradientsSetOfOutputLayer.mapRows(row => [row.reduce((p, c) => p + c, 0)]).transposed().data[0]
+    
     
     /**
      * @var averageWeightAdjustmentMatrixOfOutputLayer
@@ -143,8 +155,14 @@ export class NN {
      * Each average weight (i,j) is the average weight adjustment across the N entries
      */
     const averageWeightAdjustmentMatrixOfOutputLayer = totalWeightAdjustmentMatrixOfOutputLayer.mapValues(
-        d => d / inputSet.length
+        d => d / inputSet.columns
     );
+  
+    const averageBias2AdjustmentArray = totalBias2AdjustmentArray.map(
+        b => b / inputSet.columns
+    );
+    
+
     
     /**
      * @var localGradientsSetOfHiddenLayer
@@ -155,6 +173,7 @@ export class NN {
         localGradientsSetOfOutputLayer,
         inducedLocalFieldsSetOfHiddenLayer
     );
+    
     
     /**
      * @var totalWeightAdjustmentMatrixOfHiddenLayer
@@ -171,9 +190,16 @@ export class NN {
      *
      * Each total weight (i,j) is the sum of all weight adjustments obtained from each of the N entries of the batch
      */
-    const totalWeightAdjustmentMatrixOfHiddenLayer = inputSetPlusBias.transposed()
-        .leftMultiplyWith(localGradientsSetOfHiddenLayer);
-    
+    const totalWeightAdjustmentMatrixOfHiddenLayer = inputSet
+        .leftMultiplyWith(localGradientsSetOfHiddenLayer.transposed());
+  
+    const totalBias1AdjustmentArray = localGradientsSetOfHiddenLayer
+        .mapRows(row => [row.reduce((p, c) => p + c, 0)])
+        .transposed().data[0]
+  
+  
+  
+  
     /**
      * @var averageWeightAdjustmentMatrixOfHiddenLayer
      * @description The average of the total weight adjustments across the N entries between input and hidden layer
@@ -183,19 +209,28 @@ export class NN {
      * Each average weight (i,j) is the average weight adjustment across the N entries
      */
     const averageWeightAdjustmentMatrixOfHiddenLayer = totalWeightAdjustmentMatrixOfHiddenLayer.mapValues(
-        d => d / inputSet.length
+        d => d / inputSet.columns
     );
-    
-    
+  
+    const averageBias1AdjustmentArray = totalBias1AdjustmentArray.map(
+        b => b / inputSet.columns
+    );
+  
+  
     this.weights1 = this.weights1.operateWith(
         averageWeightAdjustmentMatrixOfHiddenLayer,
         (weight, newWeight) => weight + this.learningRate * newWeight
     );
     
+    
     this.weights2 = this.weights2.operateWith(
         averageWeightAdjustmentMatrixOfOutputLayer,
         (weight, newWeight) => weight + this.learningRate * newWeight
     );
+    
+    this.bias1 = this.bias1.map((b, i) => b + this.learningRate * averageBias1AdjustmentArray[i]);
+    this.bias2 = this.bias2.map((b, i) => b + this.learningRate * averageBias2AdjustmentArray[i]);
+    
   }
   
   /**
@@ -212,6 +247,7 @@ export class NN {
       errorsSet: Matrix,
       localInducedFieldsSetOfOutputLayer: Matrix
   ): Matrix {
+    
     
     /**
      * @var derivativesSetOfOutputLayer
@@ -252,18 +288,6 @@ export class NN {
     );
     
     /**
-     * @var weights2WithoutBias
-     * @description The weights connecting the hidden layer to the output layer, but without the bias weights
-     * Reason: there is no connection from the input layer to the hidden layer bias,
-     *  so there is no need to obtain the local gradient of the hidden layer bias,
-     *  because it is not going to be propagated back to any weight in the input layer
-     *
-     * Size [H, O] (A math of weights (i,j) connecting the H (i) neurons of the hidden layer to the
-     *    O (j) output neurons of the output layer.
-     */
-    const weights2WithoutBias = this.weights2.sliceRows(1);
-    
-    /**
      * @var backpropagatedGradientsSet
      * @description The propagated gradients from the output neurons back to the hidden layer, weighted by the connections
      * This is not yet the local gradient of the hidden neuron,
@@ -276,8 +300,8 @@ export class NN {
      *
      * Size [N, H] (N entries, each with H backpropagated gradients from the output to the hidden layer)
      */
-    const backpropagatedGradientsSet = localGradientsSetOfOutputLayer
-        .leftMultiplyWith(weights2WithoutBias.transposed());
+    const backpropagatedGradientsSet = this.weights2.leftMultiplyWith(localGradientsSetOfOutputLayer);
+    
     
     /**
      * @returns the set of hidden local gradients

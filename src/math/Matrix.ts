@@ -113,6 +113,10 @@ export class Matrix {
     return Matrix.from(this.data.map(rowMapper));
   }
   
+  mapColumns(columnMapper: MatrixRowMapper): Matrix {
+    return this.transposed().mapRows(columnMapper).transposed()
+  }
+  
   /**
    * @method transposed
    * @description Obtains the transposed of this matrix
