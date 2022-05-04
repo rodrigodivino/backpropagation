@@ -1,0 +1,1 @@
+{"version":3,"file":"get-mapped-matrix.js","sourceRoot":"","sources":["get-mapped-matrix.ts"],"names":[],"mappings":"AAAA;;;;;GAKG;AACH,MAAM,UAAU,eAAe,CAAC,MAAkB,EAAE,EAAyB;IAC3E,OAAO,MAAM,CAAC,GAAG,CAAC,UAAA,GAAG;QACnB,OAAO,GAAG,CAAC,GAAG,CAAC,UAAA,KAAK,IAAI,OAAA,EAAE,CAAC,KAAK,CAAC,EAAT,CAAS,CAAC,CAAA;IACpC,CAAC,CAAC,CAAA;AACJ,CAAC"}

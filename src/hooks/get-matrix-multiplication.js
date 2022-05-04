@@ -1,4 +1,10 @@
-import { getMatrix } from "./get-matrix.js";
+import { getNewMatrix } from "./get-new-matrix.js";
+/**
+ * @function getMatrixMultiplication
+ * @description Multiplies two matrices
+ * @param leftMatrix
+ * @param rightMatrix
+ */
 export function getMatrixMultiplication(leftMatrix, rightMatrix) {
     if (leftMatrix[0].length !== rightMatrix.length) {
         throw new Error("Error multiplying: Matrices do not match");
@@ -6,7 +12,7 @@ export function getMatrixMultiplication(leftMatrix, rightMatrix) {
     var leftRows = leftMatrix.length;
     var nOfItems = rightMatrix.length;
     var rightColumns = rightMatrix[0].length;
-    var output = getMatrix(leftRows, rightColumns);
+    var output = getNewMatrix(leftRows, rightColumns);
     for (var leftRow = 0; leftRow < leftRows; leftRow++) {
         for (var rightColumn = 0; rightColumn < rightColumns; rightColumn++) {
             var acc = 0;
